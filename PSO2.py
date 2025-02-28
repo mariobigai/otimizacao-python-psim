@@ -4,6 +4,7 @@ import numpy as np
 from scipy import integrate
 from pyswarm import pso
 
+#
 # Define the simulation parameters
 filename = "Buck - Controle PI_TF Vo.psimsch"
 parameter_names = ['kp', 'ki', 'fc']
