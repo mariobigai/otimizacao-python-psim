@@ -6,9 +6,9 @@ from pyswarm import pso
 
 #
 # Define the simulation parameters
-filename = "Buck - Controle PI_TF Vo.psimsch"
+filename = "Bridgeless_Boost_PFC_Feedforward.psimsch" #"Buck - Controle PI_TF Vo.psimsch"
 parameter_names = ['kp', 'ki', 'fc']
-boundaries = [(0.1, 10), (100, 10000), (100, 10000)]
+boundaries = [(0.1, 1000), (0.1, 1000), (100, 10000)]
 sim_failed = [0]
 
 
@@ -65,13 +65,14 @@ def plot_best(params):
     run_PSIM(params)
     df = pd.read_csv("out.txt", sep=r"\s+")
     time = df['Time']
-    output = df['Vo']
-    err = df['err']
+    #output = df['Vo']
+    #err = df['err']
+    I_L = df['I(Lin1)']
     import matplotlib.pyplot as plt
-    plt.plot(time, err)
+    plt.plot(time, I_L)
     plt.title("Best Simulation Result")
     plt.xlabel("Time")
-    plt.ylabel("Vo")
+    plt.ylabel("I(Lin1)")
     plt.show()
 
 
