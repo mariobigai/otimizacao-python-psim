@@ -9,11 +9,22 @@ from pyswarms.utils.functions import single_obj as fx
 from pyswarms.utils.plotters import (plot_cost_history, plot_contour, plot_surface)
 ###
 
-# Define the simulation parameters
+# controlador proporcional resonante - fotovoltaica
+
+
+
+############################# Variáveis
+resumeProgress = False
+n_particles = 50
+iters = 20
 filename = "Bridgeless_Boost_PFC_Feedforward.psimsch" #"Buck - Controle PI_TF Vo.psimsch"
 parameter_names = ['kp', 'ki', 'fc']
-boundaries = [(0.1, 1000), (0.1, 100), (100, 10000)]
+boundaries = [(0.01, 0.05), (20, 400), (1000, 20000)] # [(0.01, 1), (10, 1000), (1000, 20000)]
 sim_failed = [0]
+
+# Parâmetros do Swarm
+options = {'c1':2, 'c2':1.7, 'w':0.9}
+#############################
 
 def run_PSIM(params):
     """
@@ -49,23 +60,34 @@ def fitness_function(params):
 # Muda formato da matriz das fronteiras, para ficar assim: ex: ([0.1, 1, 1], [1000, 1000, 100000])
 bounds = (np.array([b[0] for b in boundaries]), np.array([b[1] for b in boundaries]))
 
-# Parâmetros do Swarm
-options = {'c1':0.5, 'c2':0.3, 'w':0.9}
+
 
 # Call instance of PSO with bounds argument
-optimizer = ps.single.GlobalBestPSO(n_particles=4, dimensions=3, options=options, bounds=bounds)
+if resumeProgress:
+    # Load best swarm positions from file (ensure shape: (n_particles, dimensions))
+    init_pos = np.loadtxt("best.txt")
+    optimizer = ps.single.GlobalBestPSO(n_particles=n_particles, dimensions=3, options=options, bounds=bounds,init_pos=init_pos)
+else:
+    optimizer = ps.single.GlobalBestPSO(n_particles=n_particles, dimensions=3, options=options, bounds=bounds)
 
 # Perform optimization
-cost, pos = optimizer.optimize(fitness_function, iters=2)
+cost, pos = optimizer.optimize(fitness_function, iters=iters)
 
-##########################
-# Plota resultados
+print("Number of Failed Simulations:", sim_failed[0])
+
+# Save best swarm positions for future use as init_pos
+np.savetxt("best.txt", optimizer.swarm.position)
+
+########################## - Pré-requisitos para plotagem
 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 # Example pos_history from optimizer (replace with your actual pos_history)
 pos_history = optimizer.pos_history  # Shape: (iterations, swarm_size, dimensions)
+fit_history = optimizer.cost_history  # Shape: (iterations,)
+
+########################## - 2D Plot
 
 # Convert to numpy array for easier slicing
 pos_history = np.array(pos_history)
@@ -87,9 +109,7 @@ ani.save('swarm.gif', writer='imagemagick', fps=5)
 Image(url='swarm.gif')
 #ax.clear()
 
-##########################
-
-print("Number of Failed Simulations:", sim_failed[0])
+########################## - Best result plot
 
 # Visualize the best result
 def plot_best(params):
@@ -102,6 +122,36 @@ def plot_best(params):
     plt.title("Best Simulation Result")
     plt.xlabel("Time")
     plt.ylabel("I(Lin1)")
-    plt.show()
+    #plt.show() - deixa p/ plotar no fim do código (impede travamento)
 
 plot_best(pos)
+
+############################# - 3D Plot
+
+# Create a figure and a 3D axes
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+
+def update(frame):
+    ax.clear()  # Clear previous points
+    # Plot the current iteration's positions in 3D space
+    ax.scatter(pos_history[frame][:, 0], pos_history[frame][:, 1], fit_history[frame])
+    ax.set_xlim(bounds[0][0], bounds[1][0])
+    ax.set_ylim(bounds[0][1], bounds[1][1])
+    ax.set_zlim(0, max(fit_history))
+    ax.set_title(f"Iteration {frame}")
+
+# Create the animation; frames equals the number of iterations
+ani = animation.FuncAnimation(fig, update, frames=len(pos_history), repeat=False)
+ani.save('swarm3d.gif', writer='imagemagick', fps=20)
+Image(url='swarm3d.gif')
+
+# Set labels and title
+ax.set_xlabel('X axis')
+ax.set_ylabel('Y axis')
+ax.set_zlabel('Z axis')
+ax.set_title('Fitness vs kp e ki')
+
+
+# Mostra todos os plots
+plt.show()
